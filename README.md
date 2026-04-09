@@ -1,11 +1,11 @@
-# 🚚 Guia del Hackathon: Logistics & Fleet Copilot
+# 🚚 Guia paso a paso para Immersion Day: Logistics & Fleet Copilot
 ## Paso a paso con prompts para Cortex Code
 
 **Tiempo total:** 90 minutos
 **Herramienta:** Snowflake Cortex Code (CoCo) — todo se hace con prompts en el IDE
 **Objetivo:** Construir un pipeline end-to-end Bronze > Silver > Gold + 3 casos de uso AI + Semantic View + Cortex Agent
 **Industria:** Transporte, Logistica y Travel
-**Base de datos:** LOGISTICS_COPILOT
+**Base de datos:** LOGISTICS_IMMERSION
 
 ---
 
@@ -20,7 +20,7 @@
 3. En la pantalla de configuracion, selecciona:
    - **Cloud Provider:** AWS
    - **Edition:** Enterprise
-   - **Region:** US West (Oregon)
+   - **Region:** EU Frankfurt
 4. Acepta los terminos y haz clic en **"Get Started"**
 5. Revisa tu email y haz clic en el enlace de activacion
 6. Establece tu usuario y contrasena
@@ -57,8 +57,8 @@ Dime que version de Snowflake estoy usando con SELECT CURRENT_VERSION();
 Los 4 ficheros JSON estan en un repositorio Git de GitHub:
 
 ```
-https://github.com/Snowflake-Spain-SE-Demos-Sandbox/Cortex_Code_Hackathon/
-  └── data/logistics/
+https://github.com/psaenzdetejada/immersion_day/
+  └── data/
         ├── fleet_vehicles.json            (350 vehiculos de flota)
         ├── route_events.json              (10,000 eventos de ruta)
         ├── delivery_tickets.json          (750 tickets de incidencias)
@@ -104,7 +104,7 @@ GitHub Repo (JSON) --> Git Integration --> Snowflake
 ### Paso 1.1 — Crear la base de datos y esquemas
 
 ```
-Crea una base de datos llamada LOGISTICS_COPILOT con cuatro esquemas: BRONZE, SILVER, GOLD y AI.
+Crea una base de datos llamada LOGISTICS_IMMERSION con cuatro esquemas: BRONZE, SILVER, GOLD y AI.
 Usa el warehouse COMPUTE_WH.
 ```
 
@@ -112,11 +112,11 @@ Usa el warehouse COMPUTE_WH.
 
 ```
 Necesito conectar Snowflake a un repositorio publico de GitHub para cargar datos JSON.
-El repositorio es: https://github.com/sfc-gh-psaenzdetejada/snowflake_logistics_session
+El repositorio es: https://github.com/psaenzdetejada/immersion_day/
 
 Crea una API Integration de tipo git_https_api que permita acceder a
 https://github.com/Snowflake-Spain-SE-Demos-Sandbox
-y luego crea un Git Repository en LOGISTICS_COPILOT.PUBLIC llamado HACKATHON_REPO
+y luego crea un Git Repository en LOGISTICS_IMMERSION.PUBLIC llamado IMMERSION_REPO
 que apunte a ese repositorio.
 
 No necesita autenticacion porque es un repo publico.
@@ -127,19 +127,19 @@ No necesita autenticacion porque es un repo publico.
 ```sql
 CREATE OR REPLACE API INTEGRATION GIT_HACKATHON_INTEGRATION
   API_PROVIDER = git_https_api
-  API_ALLOWED_PREFIXES = ('https://github.com/Snowflake-Spain-SE-Demos-Sandbox')
+  API_ALLOWED_PREFIXES = ('https://github.com/psaenzdetejada/immersion_day/')
   ENABLED = TRUE;
 
-CREATE OR REPLACE GIT REPOSITORY LOGISTICS_COPILOT.PUBLIC.HACKATHON_REPO
+CREATE OR REPLACE GIT REPOSITORY LOGISTICS_IMMERSION.PUBLIC.HACKATHON_REPO
   API_INTEGRATION = GIT_HACKATHON_INTEGRATION
-  ORIGIN = 'https://github.com/Snowflake-Spain-SE-Demos-Sandbox/Cortex_Code_Hackathon.git';
+  ORIGIN = 'https://github.com/psaenzdetejada/immersion_day/.git';
 ```
 
 ### Paso 1.3 — Sincronizar y verificar
 
 ```sql
-ALTER GIT REPOSITORY LOGISTICS_COPILOT.PUBLIC.HACKATHON_REPO FETCH;
-LIST @LOGISTICS_COPILOT.PUBLIC.HACKATHON_REPO/branches/main/data/logistics/;
+ALTER GIT REPOSITORY LOGISTICS_IMMERSION.PUBLIC.HACKATHON_REPO FETCH;
+LIST @LOGISTICS_IMMERSION.PUBLIC.HACKATHON_REPO/branches/main/data/logistics/;
 ```
 
 > **Resultado esperado:** Los 4 ficheros JSON listados.
@@ -147,7 +147,7 @@ LIST @LOGISTICS_COPILOT.PUBLIC.HACKATHON_REPO/branches/main/data/logistics/;
 ### Paso 1.4 — Crear el file format
 
 ```
-En LOGISTICS_COPILOT.BRONZE, crea un file format JSON llamado JSON_FORMAT con STRIP_OUTER_ARRAY = TRUE.
+En LOGISTICS_IMMERSION.BRONZE, crea un file format JSON llamado JSON_FORMAT con STRIP_OUTER_ARRAY = TRUE.
 ```
 
 ### Paso 1.5 — Crear tablas Bronze y cargar datos
@@ -155,7 +155,7 @@ En LOGISTICS_COPILOT.BRONZE, crea un file format JSON llamado JSON_FORMAT con ST
 > **SQL directo:**
 
 ```sql
-USE DATABASE LOGISTICS_COPILOT;
+USE DATABASE LOGISTICS_IMMERSION;
 USE SCHEMA BRONZE;
 
 CREATE OR REPLACE TABLE RAW_FLEET (
@@ -198,7 +198,7 @@ FILE_FORMAT = (TYPE = 'JSON', STRIP_OUTER_ARRAY = TRUE);
 ### Paso 1.6 — Validar la carga
 
 ```
-Haz un SELECT COUNT(*) de cada una de las 4 tablas Bronze en LOGISTICS_COPILOT.BRONZE
+Haz un SELECT COUNT(*) de cada una de las 4 tablas Bronze en LOGISTICS_IMMERSION.BRONZE
 y muestra una fila de ejemplo de cada una.
 ```
 
@@ -213,12 +213,12 @@ y muestra una fila de ejemplo de cada una.
 ### Paso 2.1 — Inicializar el proyecto dbt
 
 ```
-Crea un proyecto dbt llamado logistics_copilot que conecte a la base de datos LOGISTICS_COPILOT.
+Crea un proyecto dbt llamado LOGISTICS_DBT que conecte a la base de datos LOGISTICS_IMMERSION.
 El proyecto debe tener:
 - models/staging/ (modelos Silver)
 - models/marts/ (modelos Gold)
 
-El profile debe usar warehouse COMPUTE_WH, base de datos LOGISTICS_COPILOT,
+El profile debe usar warehouse COMPUTE_WH, base de datos LOGISTICS_IMMERSION,
 esquema SILVER para staging y GOLD para marts.
 ```
 
@@ -226,7 +226,7 @@ esquema SILVER para staging y GOLD para marts.
 
 ```
 Crea models/staging/sources.yml con las 4 tablas Bronze como sources:
-- database: LOGISTICS_COPILOT
+- database: LOGISTICS_IMMERSION
 - schema: BRONZE
 - tables: RAW_FLEET, RAW_ROUTE_EVENTS, RAW_DELIVERY_TICKETS, RAW_SHIPMENTS
 ```
@@ -283,7 +283,7 @@ Materializa como table en el esquema SILVER.
 Ejecuta dbt run --select staging y luego dbt test.
 ```
 
-> **Checkpoint:** 4 tablas en LOGISTICS_COPILOT.SILVER con datos tipados.
+> **Checkpoint:** 4 tablas en LOGISTICS_IMMERSION.SILVER con datos tipados.
 
 
 ### Modelo Gold: VEHICLE_360
@@ -320,7 +320,7 @@ Materializa como table en el esquema GOLD.
 Ejecuta dbt run y dbt test. Muestra conteo de filas de las tablas Gold.
 ```
 
-> **Checkpoint:** 3 tablas en LOGISTICS_COPILOT.GOLD listas para AI.
+> **Checkpoint:** 3 tablas en LOGISTICS_IMMERSION.GOLD listas para AI.
 
 ---
 
@@ -335,14 +335,14 @@ Ejecuta dbt run y dbt test. Muestra conteo de filas de las tablas Gold.
 
 ```
 Escribe una query SQL que use SNOWFLAKE.CORTEX.COMPLETE con el modelo 'llama3.1-70b'
-para clasificacion de incidencias de entrega de la tabla LOGISTICS_COPILOT.SILVER.STG_DELIVERY_TICKETS.
+para clasificacion de incidencias de entrega de la tabla LOGISTICS_IMMERSION.SILVER.STG_DELIVERY_TICKETS.
 
 El LLM debe analizar el campo "description" y devolver un JSON con: tipo_incidencia (retraso|dano|direccion|vehiculo|documentacion|rechazo|temperatura|peso), urgencia (critica|alta|media|baja), departamento (operaciones|flota|calidad|atencion_cliente|legal), impacto_servicio (alto|medio|bajo), resumen_corto (max 15 palabras)
 
 El prompt del LLM debe decir:
 "Eres un sistema de clasificacion de incidencias de una empresa de transporte y logistica."
 
-Crea una vista en el esquema LOGISTICS_COPILOT.AI llamada VW_DELIVERY_CLASSIFICATION.
+Crea una vista en el esquema LOGISTICS_IMMERSION.AI llamada VW_DELIVERY_CLASSIFICATION.
 Limita a 50 registros.
 ```
 
@@ -353,14 +353,14 @@ Limita a 50 registros.
 
 ```
 Escribe una query SQL que use SNOWFLAKE.CORTEX.COMPLETE con el modelo 'llama3.1-70b'
-para resumen ejecutivo de vehiculo/flota de la tabla LOGISTICS_COPILOT.GOLD.VEHICLE_360.
+para resumen ejecutivo de vehiculo/flota de la tabla LOGISTICS_IMMERSION.GOLD.VEHICLE_360.
 
 El LLM debe analizar los datos del registro y devolver un resumen ejecutivo en espanol (3-4 frases) usando estos datos: plate_number, type, base_location, km_total, total_shipments, incidents_count, total_revenue_eur, days_until_maintenance
 
 El prompt del LLM debe decir:
 "Eres un gestor de flota de transporte. Genera un resumen ejecutivo en espanol (3-4 frases) del estado de este vehiculo."
 
-Crea una vista en el esquema LOGISTICS_COPILOT.AI llamada VW_FLEET_EXECUTIVE_SUMMARY.
+Crea una vista en el esquema LOGISTICS_IMMERSION.AI llamada VW_FLEET_EXECUTIVE_SUMMARY.
 Limita a 20 registros.
 ```
 
@@ -371,14 +371,14 @@ Limita a 20 registros.
 
 ```
 Escribe una query SQL que use SNOWFLAKE.CORTEX.COMPLETE con el modelo 'llama3.1-70b'
-para recomendacion de optimizacion de ruta de la tabla LOGISTICS_COPILOT.GOLD.DELIVERY_RISK.
+para recomendacion de optimizacion de ruta de la tabla LOGISTICS_IMMERSION.GOLD.DELIVERY_RISK.
 
 El LLM debe analizar los datos del registro y devolver un JSON con: nivel_riesgo (alto|medio|bajo), accion_principal (cambio_ruta|mantenimiento_vehiculo|refuerzo_capacidad|formacion_conductor), mejora_estimada_pct, plazo_implementacion_dias, impacto_coste_eur, recomendacion_detallada
 
 El prompt del LLM debe decir:
 "Eres un experto en optimizacion logistica. Analiza esta ruta/vehiculo y devuelve SOLO un JSON valido."
 
-Crea una vista en el esquema LOGISTICS_COPILOT.AI llamada VW_ROUTE_OPTIMIZATION.
+Crea una vista en el esquema LOGISTICS_IMMERSION.AI llamada VW_ROUTE_OPTIMIZATION.
 Limita a 25 registros con filtro delivery_risk_score >= 30.
 ```
 
@@ -388,9 +388,9 @@ Limita a 25 registros con filtro delivery_risk_score >= 30.
 
 ```
 Ejecuta las 3 vistas AI y muestra 3 filas de ejemplo de cada una:
-- SELECT * FROM LOGISTICS_COPILOT.AI.VW_DELIVERY_CLASSIFICATION LIMIT 3;
-- SELECT * FROM LOGISTICS_COPILOT.AI.VW_FLEET_EXECUTIVE_SUMMARY LIMIT 3;
-- SELECT * FROM LOGISTICS_COPILOT.AI.VW_ROUTE_OPTIMIZATION LIMIT 3;
+- SELECT * FROM LOGISTICS_IMMERSION.AI.VW_DELIVERY_CLASSIFICATION LIMIT 3;
+- SELECT * FROM LOGISTICS_IMMERSION.AI.VW_FLEET_EXECUTIVE_SUMMARY LIMIT 3;
+- SELECT * FROM LOGISTICS_IMMERSION.AI.VW_ROUTE_OPTIMIZATION LIMIT 3;
 ```
 
 > **Checkpoint:** 3 vistas AI en LOGISTICS_COPILOT.AI con resultados coherentes.
@@ -402,17 +402,17 @@ Ejecuta las 3 vistas AI y muestra 3 filas de ejemplo de cada una:
 > **Objetivo:** Crear una Semantic View sobre las tablas Gold y Silver para consultas en lenguaje natural.
 
 ```
-Crea una Semantic View en LOGISTICS_COPILOT.GOLD llamada SV_LOGISTICS_COPILOT
+Crea una Semantic View en LOGISTICS_IMMERSION.GOLD llamada SV_LOGISTICS_COPILOT
 que conecte las tablas Silver y Gold para consultas en lenguaje natural.
 
 Tablas logicas:
-- stg_fleet: LOGISTICS_COPILOT.SILVER.STG_FLEET (PK: vehicle_id)
-- stg_route_events: LOGISTICS_COPILOT.SILVER.STG_ROUTE_EVENTS (PK: event_id)
-- stg_delivery_tickets: LOGISTICS_COPILOT.SILVER.STG_DELIVERY_TICKETS (PK: ticket_id)
-- stg_shipments: LOGISTICS_COPILOT.SILVER.STG_SHIPMENTS (PK: shipment_id)
-- vehicle_360: LOGISTICS_COPILOT.GOLD.VEHICLE_360
-- route_health: LOGISTICS_COPILOT.GOLD.ROUTE_HEALTH
-- delivery_risk: LOGISTICS_COPILOT.GOLD.DELIVERY_RISK
+- stg_fleet: LOGISTICS_IMMERSION.SILVER.STG_FLEET (PK: vehicle_id)
+- stg_route_events: LOGISTICS_IMMERSION.SILVER.STG_ROUTE_EVENTS (PK: event_id)
+- stg_delivery_tickets: LOGISTICS_IMMERSION.SILVER.STG_DELIVERY_TICKETS (PK: ticket_id)
+- stg_shipments: LOGISTICS_IMMERSION.SILVER.STG_SHIPMENTS (PK: shipment_id)
+- vehicle_360: LOGISTICS_IMMERSION.GOLD.VEHICLE_360
+- route_health: LOGISTICS_IMMERSION.GOLD.ROUTE_HEALTH
+- delivery_risk: LOGISTICS_IMMERSION.GOLD.DELIVERY_RISK
 
 Relaciones: todas las tablas se relacionan por vehicle_id con la tabla principal.
 
@@ -421,7 +421,7 @@ e instrucciones AI_SQL_GENERATION explicando que es una empresa de transporte y 
 ```
 
 > **Checkpoint:** Semantic View creada. Prueba con queries tipo:
-> `SELECT * FROM SEMANTIC VIEW (LOGISTICS_COPILOT.GOLD.SV_LOGISTICS_COPILOT DIMENSIONS (...) METRICS (...));`
+> `SELECT * FROM SEMANTIC VIEW (LOGISTICS_IMMERSION.GOLD.SV_LOGISTICS_COPILOT DIMENSIONS (...) METRICS (...));`
 
 ---
 
@@ -430,10 +430,9 @@ e instrucciones AI_SQL_GENERATION explicando que es una empresa de transporte y 
 > **Objetivo:** Crear un Cortex Agent conectado a la Semantic View.
 
 ```sql
-CREATE DATABASE IF NOT EXISTS SNOWFLAKE_INTELLIGENCE;
-CREATE SCHEMA IF NOT EXISTS SNOWFLAKE_INTELLIGENCE.AGENTS;
+CREATE SCHEMA IF NOT EXISTS LOGISTICS_IMMERSION.AGENTS;
 
-CREATE OR REPLACE AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.LOGISTICS_COPILOT_AGENT
+CREATE OR REPLACE AGENT LOGISTICS_IMMERSION.AGENTS.LOGISTICS_COPILOT_AGENT
   COMMENT = 'Agente de transporte, logistica y travel para consultas en lenguaje natural'
   PROFILE = '{"display_name": "Logistics & Fleet Copilot"}'
   FROM SPECIFICATION $$
@@ -456,7 +455,7 @@ CREATE OR REPLACE AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.LOGISTICS_COPILOT_AGENT
     ],
     "tool_resources": {
       "logistics_analyst": {
-        "semantic_view": "LOGISTICS_COPILOT.GOLD.SV_LOGISTICS_COPILOT",
+        "semantic_view": "LOGISTICS_IMMERSION.GOLD.SV_LOGISTICS_COPILOT",
         "execution_environment": {
           "type": "warehouse",
           "warehouse": "COMPUTE_WH"
@@ -467,8 +466,8 @@ CREATE OR REPLACE AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.LOGISTICS_COPILOT_AGENT
   }
   $$;
 
-GRANT USAGE ON AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.LOGISTICS_COPILOT_AGENT TO ROLE PUBLIC;
-GRANT SELECT ON SEMANTIC VIEW LOGISTICS_COPILOT.GOLD.SV_LOGISTICS_COPILOT TO ROLE PUBLIC;
+GRANT USAGE ON AGENT LOGISTICS_IMMERSION.AGENTS.LOGISTICS_COPILOT_AGENT TO ROLE PUBLIC;
+GRANT SELECT ON SEMANTIC VIEW LOGISTICS_IMMERSION.GOLD.SV_LOGISTICS_COPILOT TO ROLE PUBLIC;
 ```
 
 ### Probar el agente
